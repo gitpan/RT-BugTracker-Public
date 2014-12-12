@@ -46,9 +46,7 @@
 %# 
 %# END BPS TAGGED BLOCK }}}
 <& /Elements/Header, Title => $title &>
-<& /Public/Elements/Tabs,
-    Ticket => $TicketObj,
-    Title => $title &>
+<& /Elements/Tabs &>
 
 <form action="<% $RT::WebPath %>/Public/Bug/Update.html" name="TicketUpdate" 
 	method="post" enctype="multipart/form-data">
@@ -58,7 +56,7 @@
 <table border="0">
 
 % my $skip;
-<& /Elements/Callback, _CallbackName => 'BeforeUpdateType', skip => \$skip, %ARGS &>
+% $m->callback( %ARGS, CallbackName => 'BeforeUpdateType', skip => \$skip );
 % if (!$skip) {
 <input type="hidden" class="hidden" name="id" value="<%$TicketObj->Id%>" /><br />
 % }

@@ -45,12 +45,18 @@
 # those contributions and any derivatives thereof.
 # 
 # END BPS TAGGED BLOCK }}}
+
+use 5.008003;
+use strict;
+use warnings;
+
 package RT::BugTracker::Public;
+use URI::Escape qw/ uri_escape /;
 
-use v5.8.3;
-our $VERSION = '0.02';
+our $VERSION = '0.05';
 
-1;
+RT->AddJavaScript("bugtracker-public.js");
+RT->AddStyleSheets("bugtracker-public.css");
 
 =head1 NAME
 
@@ -61,18 +67,6 @@ RT::BugTracker::Public - Adds a public, (hopefully) userfriendly bug tracking UI
 You can find F<local/etc/BugTracker-Public/RT_SiteConfig.pm> with example of
 configuration and sane defaults. Add require in the main F<RT_SiteConfig.pm> or
 define options there.
-
-=head2 NoAuthRegexp
-
-As public shouldn't require authentication then you should add '/Public/' path
-to NoAuthRegexp option, something like:
-
-    Set($WebNoAuthRegex, qr!^(?:/+NoAuth/|
-                                /+Public/|
-                                /+REST/\d+\.\d+/NoAuth/)!x );
-
-Note that if you have multiple extensions that want to change this option then
-you have to merge them manually into one perl regular expression.
 
 =head2 WebPublicUser
 
@@ -95,8 +89,62 @@ The public user should probably be unprivileged and have the following rights
 If you want the public UI to do anything useful. It should NOT have the
 ModifySelf right.
 
+=cut
+
+sub IsPublicUser {
+    my $self = shift;
+
+    my $session = \%HTML::Mason::Commands::session;
+    # XXX: Not sure when it happens
+    return 1 unless $session->{'CurrentUser'} && $session->{'CurrentUser'}->id;
+    return 1 if $session->{'CurrentUser'}->Name eq ($RT::WebPublicUser||'');
+    return 1 if defined $session->{'BitcardUser'};
+    return 1 if defined $session->{'CurrentUser'}->{'OpenID'};
+    return 0;
+}
+
+sub RedirectToPublic {
+    my $self = shift;
+    my %args = @_;
+    my ($path, $ARGS) = @args{"Path", "ARGS"};
+
+    # The following logic is very similar to the default priv/unpriv logic for
+    # self service, which is disabled.
+
+    if ( $path =~ '^(/+)Ticket/Display.html' and $ARGS->{'id'} ) {
+        return "/Public/Bug/Display.html?id="
+                    . uri_escape($ARGS->{'id'});
+    }
+    elsif ( $path =~ '^(/+)Dist/Display.html' and ($ARGS->{'Name'} or $ARGS->{'Queue'}) ) {
+        return "/Public/Dist/Display.html?Name="
+                    . uri_escape($ARGS->{'Name'} || $ARGS->{'Queue'});
+    }
+    elsif ( $path =~ '^(/+)Dist/ByMaintainer.html' and $ARGS->{'Name'} ) {
+        return "/Public/Dist/ByMaintainer.html?Name="
+                    . uri_escape($ARGS->{'Name'});
+    }
+    elsif ( $path =~ '^(/+)Ticket/Attachment/' ) {
+        # Proxying through a /Public/ url lets us auto-login users
+        return "/Public$path";
+    }
+
+    # otherwise, drop the user at the Public default page
+    elsif (    $path !~ '^(/+)Public/'
+           and $path !~ RT->Config->Get('WebNoAuthRegex')
+           and $path !~ '^/+Helpers/Autocomplete/Queues' ) {
+        return "/Public/";
+    }
+    return undef;
+}
+
 =head1 AUTHOR
 
 Thomas Sibley E<lt>trs@bestpractical.comE<gt>
 
+=head1 LICENSE
+
+GPL version 2.
+
 =cut
+
+1;

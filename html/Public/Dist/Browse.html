@@ -45,6 +45,22 @@
 %# those contributions and any derivatives thereof.
 %# 
 %# END BPS TAGGED BLOCK }}}
-<form action="<% $RT::WebPath %>/Public/Bug/Report.html" name="CreateTicketInQueue">
-<&|/l, $m->scomp('/Elements/SelectNewTicketQueue')&><input type="submit" class="button" value="New ticket in" />&nbsp;[_1]</&>
-</form>
+<& /Elements/Header, Title => $title &>
+<& /Elements/Tabs &>
+
+<& /Dist/Elements/BeginsWith, Name => $Name &>
+
+% if ( $queues ) {
+<& /Public/Elements/DistributionList, queues => $queues &>
+% }
+
+<%args>
+$Name => undef
+</%args>
+<%init>
+
+my ($queues, $title) = $m->comp(
+    '/Dist/Elements/BeginsWith:Process',
+    Name => $Name,
+);
+</%init>

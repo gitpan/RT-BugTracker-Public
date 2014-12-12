@@ -46,13 +46,13 @@
 %# 
 %# END BPS TAGGED BLOCK }}}
 <& /Elements/Header, 
-    Title => loc("#[_1]: [_2]", $TicketObj->Id, $TicketObj->Subject) &>
-<& /Public/Elements/Tabs, 
-    Title => loc("#[_1]: [_2]", $TicketObj->Id, $TicketObj->Subject),
-    queue => $TicketObj->QueueObj->Name,
-    &>
+    Title => $title &>
+<& /Elements/Tabs &>
 
 <& /Elements/ListActions, actions => \@Actions &>
+
+<& /Dist/Elements/ShowBugtracker, Queue => $TicketObj->QueueObj &>
+<& /Dist/Elements/ShowNotes, Queue => $TicketObj->QueueObj &>
 
 <&| /Widgets/TitleBox, title => loc("Report information") &>
 <& /Public/Bug/Elements/ShowSummary, Ticket => $TicketObj, Attachments => $attachments &>
@@ -60,18 +60,19 @@
 
 <br />
 
-<& /Elements/Callback, _CallbackName => 'BeforeShowHistory', Ticket => $TicketObj, %ARGS &>
+% $m->callback(%ARGS, CallbackName => 'BeforeShowHistory', Ticket => $TicketObj);
 
-<& /Public/Bug/Elements/ShowHistory , 
+<& /Ticket/Elements/ShowHistory , 
       Ticket => $TicketObj, 
       Tickets => $Tickets, 
       Collapsed => $ARGS{'Collapsed'}, 
       ShowHeaders => $ARGS{'ShowHeaders'},
       Attachments => $attachments,
       AttachmentContent => $attachment_content,
-      UpdatePath => "$RT::WebPath/Public/Bug/Update.html"
-      
-      &> 
+      URIFile     => RT->Config->Get('WebPath') . '/Public/Bug/Display.html',
+      DisplayPath => RT->Config->Get('WebPath') . '/Public/Bug/Display.html?id='. $TicketObj->id,
+      UpdatePath  => RT->Config->Get('WebPath') . '/Public/Bug/Update.html',
+&> 
 
 <%ARGS>
 $id => undef
@@ -82,9 +83,9 @@ $TicketObj => undef
 </%ARGS>
 
 <%INIT>
-$m->comp('/Elements/Callback', _CallbackName => 'Initial', TicketObj => $TicketObj, ARGSRef => \%ARGS);
+$m->callback(CallbackName => 'Initial', TicketObj => $TicketObj, ARGSRef => \%ARGS);
 
-my ($linkid, $message, $tid, @Actions, $Tickets);
+my (@Actions, $Tickets);
 
 unless ($id || $TicketObj) {
     Abort('No ticket specified');
@@ -107,7 +108,6 @@ if ($ARGS{'id'} eq 'new') {
     unless ($TicketObj->CurrentUserHasRight('ShowTicket')) {
 	Abort("No permission to view newly created ticket #".$TicketObj->id.".");
 	}
-        $RT::Logger->crit("Just created the ticket");
     # }}}
 } else { 
     if (!$TicketObj) {
@@ -153,32 +153,27 @@ if ($ARGS{'id'} eq 'new') {
 
 
 
-$RT::Logger->crit("About to check for actions to prepare for a redirect");
 if (@Actions) {
-    $RT::Logger->crit("We have actions. time to redirect"); 
     # We've done something, so we need to clear the decks to avoid 
     # resubmission on refresh.
     # But we need to store Actions somewhere too, so we don't lose them.
     $session{"Actions"} = \@Actions;
-    $m->redirect($RT::WebURL."/Ticket/Display.html?id=".$TicketObj->id);
-    $RT::Logger->crit("Set up the redirect");
+    $m->redirect( $RT::WebPath ."/Ticket/Display.html?id=".$TicketObj->id);
     $m->abort();
-    $RT::Logger->crit("Aborted. Should never be called");
-} else {
-    $RT::Logger->crit("We're not redirecting. load up some actions if they exist");
-    @Actions = @{$session{"Actions"} || [] };
-    delete $session{"Actions"};
+    $RT::Logger->error("Aborted. Should never be called");
 }
 
-$RT::Logger->crit("We're past the point where any redirect happens");
-
-
-$m->comp('/Elements/Callback', _CallbackName => 'BeforeDisplay',
+$m->callback(CallbackName => 'BeforeDisplay',
 	 TicketObj => \$TicketObj, Tickets => \$Tickets, ARGSRef => \%ARGS);
 
 
 my $attachments = $m->comp('/Ticket/Elements/FindAttachments', Ticket => $TicketObj, Tickets => $Tickets);
 my $attachment_content = $m->comp('/Ticket/Elements/LoadTextAttachments', Ticket => $TicketObj);
+
+my $title = loc(
+    "Bug #[_1] for [_2]: [_3]",
+    $TicketObj->Id, $TicketObj->QueueObj->Name, $TicketObj->Subject
+);
 
 sub _UpdateMessage {
     # Modified version of RT::Interface::Web::ProcessUpdateMessage()

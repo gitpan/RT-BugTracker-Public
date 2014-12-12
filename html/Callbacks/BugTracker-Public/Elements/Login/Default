@@ -45,8 +45,8 @@
 %# those contributions and any derivatives thereof.
 %# 
 %# END BPS TAGGED BLOCK }}}
-<div class="input-row">
-  Don't have an account but want to browse bugs?
-  Use the <a href="<% $RT::WebBaseURL %>/Public/?nossl=true">public interface</a>.
-  Want to report a bug?  Send it in via e-mail.
-</div>
+<h3><% loc("Don't have an account but want to browse bugs?") %></h3>
+<p>
+<% loc('Use the <a href="[_1]">public interface</a>.', RT->Config->Get('WebBaseURL') .'/Public/' ) |n %>
+<% loc('Want to report a bug? Send it in via e-mail.') %>
+</p>
